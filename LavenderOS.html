@@ -6340,6 +6340,9 @@ let _saveTimer = 0;
 let _quotaWarned = false;
 
 function persistNow() {
+  S.wallpaper = 'localwp:0';
+  S.customBg = '';
+  S.customBgType = '';
   const blob = { __v: 3 };
   for (const k in DEFAULTS) blob[k] = S[k];
   blob.customBg = ''; /* stored separately */
@@ -7322,6 +7325,10 @@ function clearCustomBg() {
 }
 
 function applyWallpaper() {
+  // Reset older saved themes and all attempted background changes.
+  S.wallpaper = 'localwp:0';
+  S.customBg = '';
+  S.customBgType = '';
   const cv = document.getElementById('wallpaper-canvas');
   const wrap = document.getElementById('wallpaper');
 
@@ -7379,6 +7386,8 @@ function applyWallpaper() {
 }
 
 function setWallpaper(id) {
+  // Only the provided photo may be selected.
+  id = 'localwp:0';
   if (id === 'custom' && !S.customBg) {
     toast('Add a custom image first.');
     return;
@@ -7390,6 +7399,10 @@ function setWallpaper(id) {
 
 /* Applies a user supplied image/GIF, but only after it is proven loadable. */
 function setCustomWallpaper(url, opts) {
+  // Disallow arbitrary external image URLs and custom-image uploads.
+  if (opts && typeof opts.onDone === 'function') opts.onDone(false);
+  if (typeof toast === 'function') toast('Only the provided photo is available.');
+  return Promise.resolve(false);
   opts = opts || {};
   const prevWall = S.wallpaper;
   const prevBg = S.customBg;
@@ -7420,6 +7433,7 @@ function setCustomWallpaper(url, opts) {
 
 /* Local static wallpaper loader - bypasses external URL validation. */
 function setLocalWallpaper(url, opts) {
+  url = 'wallpapers/only-background.webp';
   opts = opts || {};
 
   if (!/^wallpapers\/[^?#]+$/i.test(String(url || ''))) {
@@ -7464,6 +7478,12 @@ function setLocalWallpaper(url, opts) {
 }
 
 function removeCustomWallpaper() {
+  S.wallpaper = 'localwp:0';
+  S.customBg = '';
+  S.customBgType = '';
+  save(true);
+  applyWallpaper();
+  return;
   S.customBg = '';
   S.customBgType = '';
   if (S.wallpaper === 'custom') S.wallpaper = 'gifFallen';
@@ -12220,32 +12240,8 @@ function bindPrivacy13(root) {
 const BG_WP_PER_PAGE = 20;
 let bgWallPage = -1;   /* -1 = first render: open on the page holding the active wallpaper */
 
-const LOCAL_STATIC_WALLPAPERS = [
-  "wallpapers/editorial_soothingstories_article_lead_serenesnow_1280x720.jpg",
-  "wallpapers/getjr3xoyagb1.png",
-  "wallpapers/wallhaven-01e6xw.jpg",
-  "wallpapers/wallhaven-13krz9.jpg",
-  "wallpapers/wallhaven-1k1z89.jpg",
-  "wallpapers/wallhaven-1qljvw.png",
-  "wallpapers/wallhaven-43jw2v.png",
-  "wallpapers/wallhaven-4lqxrl.jpg",
-  "wallpapers/wallhaven-9my7ex.jpg",
-  "wallpapers/wallhaven-d8d58g.png",
-  "wallpapers/wallhaven-dp1j3l.png",
-  "wallpapers/wallhaven-k7mpq1.png",
-  "wallpapers/wallhaven-kxyo3d.png",
-  "wallpapers/wallhaven-l8qq3l.png",
-  "wallpapers/wallhaven-m3j7q9.png",
-  "wallpapers/wallhaven-m9kxz1.jpg",
-  "wallpapers/wallhaven-nryd2m.jpg",
-  "wallpapers/wallhaven-nzrxpy.jpg",
-  "wallpapers/wallhaven-p2rlre.jpg",
-  "wallpapers/wallhaven-poygzp.jpg",
-  "wallpapers/wallhaven-vmd6p3.jpg",
-  "wallpapers/wallhaven-yqkrrx.png",
-  "wallpapers/wallhaven-zp5rjj.png",
-  "wallpapers/wallhaven-zp9ywo.png"
-];
+/* LAVENDER_ONLY_PHOTO_WALLPAPER_20261109 */
+const LOCAL_STATIC_WALLPAPERS = ["wallpapers/only-background.webp"];
 window.__LAVENDER_LOCAL_STATIC_WALLPAPERS = LOCAL_STATIC_WALLPAPERS;
 window.__LAVENDER_LOCAL_STATIC_WALLPAPERS = LOCAL_STATIC_WALLPAPERS.filter(url => /\.(?:jpe?g|png|webp|avif|bmp)(?:[?#]|$)/i.test(String(url)));
 
