@@ -1,0 +1,58 @@
+name: Build locked LavenderOS photo wallpaper
+
+on:
+  push:
+    branches:
+      - only-photo-wallpaper-20261109
+    paths:
+      - .github/workflows/lock-wallpaper-photo.yml
+      - tools/lock_wallpaper.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lock-wallpaper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: only-photo-wallpaper-20261109
+          persist-credentials: true
+      - name: Patch full LavenderOS runtime
+        run: python tools/lock_wallpaper.py
+      - name: Validate single background
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          photo=Path('wallpapers/only-background.webp').read_bytes()
+          assert photo[:4]==b'RIFF' and photo[8:12]==b'WEBP'
+          assert b'EXIF' not in photo and b'Exif' not in photo
+          body=Path('LavenderOS.html').read_text('utf8')
+          match=re.search(r'const LOCAL_STATIC_WALLPAPERS\s*=\s*\[(.*?)\]\s*;',body,re.S)
+          assert match and match.group(1).strip()=='"wallpapers/only-background.webp"'
+          assert 'LAVENDER_ONLY_PHOTO_WALLPAPER_20261109' in body
+          assert "function setCustomWallpaper(url, opts) {\n  // Disallow" in body
+          assert "function setWallpaper(id) {\n  // Only" in body
+          assert "function persistNow() {\n  S.wallpaper = 'localwp:0'" in body
+          print('Verified one wallpaper, disabled custom wallpaper uploads, removed image metadata')
+          PY
+          git diff --check
+      - name: Commit patched HTML to fork branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- LavenderOS.html
+          if git diff --cached --quiet; then
+            echo 'No changes to the HTML are required'
+          else
+            git commit -m 'Lock LavenderOS desktop to the photo wallpaper'
+            git push origin HEAD:only-photo-wallpaper-20261109
+          fi
